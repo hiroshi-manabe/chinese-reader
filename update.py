@@ -2,38 +2,59 @@
 import pathlib
 import re
 
-# Directory where this script and the .txt files live
 BASE_DIR = pathlib.Path(__file__).parent
 
 SITE_TITLE = "Chinese Reading"
 CSS_FILE = "style.css"
 INDEX_FILE = "index.html"
 
-# Pattern: 小(xiǎo) 红(hóng) 帽(mào) ...
+# Pattern: 小(xiǎo) 红(hóng) 帽(mào)
 RUBY_RE = re.compile(r'([\u4e00-\u9fff]+)\(([^)]+)\)')
 
 
-def extract_title(text: str, fallback: str) -> str:
+def split_title_and_body(text: str):
     """
-    Use the first non-empty line to make a title.
-    Example: 小(xiǎo) 红(hóng) 帽(mào) -> 小红帽
+    Take the first non-empty line as title line (for generating the title),
+    and return (title_line, body_text).
+    The title line is NOT included in the body.
     """
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    if not lines:
-        return fallback
+    lines = text.splitlines()
+    title_line = None
+    body_start_idx = 0
 
-    first = lines[0]
-    # Remove (pinyin)
-    no_pinyin = RUBY_RE.sub(r'\1', first)
-    # Remove spaces: "小 红 帽" -> "小红帽"
+    for idx, raw in enumerate(lines):
+        if raw.strip():
+            title_line = raw.strip()
+            body_start_idx = idx + 1
+            break
+
+    if title_line is None:
+        # No non-empty lines at all
+        return None, ""
+
+    body_text = "\n".join(lines[body_start_idx:])
+    return title_line, body_text
+
+
+def make_title_from_line(line: str, fallback: str) -> str:
+    """
+    From something like: 小(xiǎo) 红(hóng) 帽(mào)
+    produce: 小红帽
+    """
+    if not line:
+        return fallback
+    # Remove pinyin parentheses: 小(xiǎo) 红(hóng) 帽(mào) -> 小 红 帽
+    no_pinyin = RUBY_RE.sub(r'\1', line)
+    # Remove all whitespace
     title = "".join(no_pinyin.split())
     return title or fallback
 
 
 def to_ruby_html(text: str) -> str:
     """
-    Convert 小(xiǎo) 红(hóng) 帽(mào) style text into ruby HTML.
-    Blank lines in the .txt become paragraph breaks (<p>).
+    Convert body text to HTML with ruby.
+    - Original line breaks -> <p> per non-empty line
+    - Half-width spaces are removed
     """
 
     def repl(match: re.Match) -> str:
@@ -42,25 +63,29 @@ def to_ruby_html(text: str) -> str:
         return f"<ruby>{han}<rt>{py}</rt></ruby>"
 
     paragraphs = []
-    for block in text.strip().split("\n\n"):
-        block = block.strip()
-        if not block:
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
             continue
-        html_block = RUBY_RE.sub(repl, block)
-        paragraphs.append(f"<p>{html_block}</p>")
+        # Remove half-width spaces
+        line = line.replace(" ", "")
+        html_line = RUBY_RE.sub(repl, line)
+        paragraphs.append(f"<p>{html_line}</p>")
+
     return "\n\n".join(paragraphs)
 
 
 def write_story_html(txt_path: pathlib.Path):
     """
-    Read one .txt file, write a same-name .html file, and
+    Read one .txt file, write same-name .html, and
     return (html_filename, display_title).
     """
     html_path = txt_path.with_suffix(".html")
-    text = txt_path.read_text(encoding="utf-8")
+    raw_text = txt_path.read_text(encoding="utf-8")
 
-    title = extract_title(text, txt_path.stem)
-    body_html = to_ruby_html(text)
+    title_line, body_text = split_title_and_body(raw_text)
+    title = make_title_from_line(title_line, txt_path.stem)
+    body_html = to_ruby_html(body_text)
 
     html = f"""<!doctype html>
 <html lang="zh-Hans">
@@ -112,57 +137,7 @@ def write_index(pages):
     (BASE_DIR / INDEX_FILE).write_text(index_html, encoding="utf-8")
 
 
-def ensure_css():
-    """
-    Create a default style.css if it doesn't exist.
-    (If you later edit style.css by hand, this script will not overwrite it.)
-    """
-    css_path = BASE_DIR / CSS_FILE
-    if css_path.exists():
-        return
-
-    css = """body {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 1rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 1.4rem;
-  line-height: 1.8;
-}
-
-a {
-  color: inherit;
-}
-
-a.back {
-  display: inline-block;
-  margin-bottom: 1rem;
-  text-decoration: none;
-}
-
-ul.story-list {
-  padding-left: 1.2rem;
-}
-
-ul.story-list li {
-  margin: 0.4rem 0;
-}
-
-ruby {
-  ruby-position: over;
-}
-
-rt {
-  font-size: 0.6em;
-  color: #555;
-}
-"""
-    css_path.write_text(css, encoding="utf-8")
-
-
 def main():
-    ensure_css()
-
     txt_files = sorted(BASE_DIR.glob("*.txt"))
     pages = []
 

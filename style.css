@@ -2,9 +2,21 @@ body {
   max-width: 800px;
   margin: 2rem auto;
   padding: 1rem;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 1.4rem;
-  line-height: 1.8;
+  font-size: 1.6rem;  /* slightly larger base size */
+  line-height: 1.9;
+  font-family:
+    "STKaiti",
+    "Kaiti SC",
+    "Hannotate SC",
+    "HanziPen SC",
+    "Songti SC",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    -apple-system,
+    system-ui,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 a {
@@ -25,11 +37,16 @@ ul.story-list li {
   margin: 0.4rem 0;
 }
 
+h1 {
+  margin-bottom: 1rem;
+}
+
+/* Ruby layout: big characters, smaller pinyin above */
 ruby {
   ruby-position: over;
 }
 
 rt {
-  font-size: 0.6em;
+  font-size: 0.55em;  /* smaller than base characters */
   color: #555;
 }
