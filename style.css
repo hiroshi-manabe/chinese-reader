@@ -47,6 +47,6 @@ ruby {
 }
 
 rt {
-  font-size: 0.4em;  /* smaller than base characters */
+  font-size: 0.45em;  /* smaller than base characters */
   color: #555;
 }
